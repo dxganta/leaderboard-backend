@@ -2,11 +2,24 @@ import dotenv from "dotenv";
 import Web3 from "web3";
 import db, { client } from "./mongoClient.js";
 import { vaults } from "./utils.js";
+import { Alchemy, Network } from "alchemy-sdk";
 
-import { readAirdropEvents, getPrice } from "./web3Utils.js";
+import {
+  readAirdropEvents,
+  getQuartzPerDay,
+  getEns,
+  getPrices,
+} from "./web3Utils.js";
 
 dotenv.config();
 const web3 = new Web3(process.env.ALCHEMY_ETHEREUM_RPC_URL);
+
+const config = {
+  apiKey: process.env.ALCHEMY_API_KEY,
+  network: Network.ETH_MAINNET,
+};
+
+const alchemy = new Alchemy(config);
 
 const getLeaderboardData = async (vaultAddress) => {
   return new Promise((resolve) => {
@@ -27,15 +40,21 @@ async function run() {
 
       const holders = await getLeaderboardData(vaultAddress);
 
+      const [ethPrice, quartzPrice] = await getPrices();
+
       for (const holder of holders) {
         if (holder.balance > 0) {
-          const quartzPerDay = await getPrice(
+          const quartzPerDay = getQuartzPerDay(
             holder.balance,
-            vault === "sceth"
+            vault === "sceth",
+            ethPrice,
+            quartzPrice
           );
 
+          const ens = await getEns(alchemy, holder.address);
+
           await coll.insertOne({
-            address: holder.address,
+            address: ens,
             balance: holder.balance,
             airdrop: holder.airdrop,
             quartzPerDay: Number(quartzPerDay),

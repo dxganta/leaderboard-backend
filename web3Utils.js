@@ -62,10 +62,7 @@ export async function readAirdropEvents(web3, vaultAddress) {
     return holders.sort((a, b) => b.airdrop - a.airdrop);
 }
 
-
-export async function getPrice(balance, isScEth) {
-  const quartzAPY = 0.15;
-
+export async function getPrices() {
   const response = await fetch(
     "https://pro-api.coinmarketcap.com/v2/cryptocurrency/quotes/latest?symbol=ETH,QUARTZ",
     {
@@ -81,10 +78,18 @@ export async function getPrice(balance, isScEth) {
   const data = await response.json();
 
   const quartzPrice = data.data.QUARTZ[0].quote.USD.price.toFixed(4);
+  const ethPrice = data.data.ETH[0].quote.USD.price.toFixed(2);
+
+  return [ ethPrice, quartzPrice];
+
+}
+
+
+export function getQuartzPerDay(balance, isScEth, ethPrice, quartzPrice) {
+  const quartzAPY = 0.15;
 
   let dollarsPerDay;
   if (isScEth) {
-    const ethPrice = data.data.ETH[0].quote.USD.price.toFixed(2);
     dollarsPerDay = (balance * ethPrice * quartzAPY) / 365;
   } else {
     dollarsPerDay = (balance * quartzAPY) / 365;
@@ -94,32 +99,15 @@ export async function getPrice(balance, isScEth) {
   return quartzPerDay.toFixed(2);
 }
 
-// async function getHolders(web3) {
-//   const response = await fetch(
-//     "https://api.chainbase.online/v1/token/holders?chain_id=1&contract_address=0x4c406C068106375724275Cbff028770C544a1333&page=1&limit=100",
-//     {
-//       method: "GET",
-//       headers: {
-//         accept: "application/json",
-//         "x-api-key": process.env.CHAINBASE_API_KEY,
-//       },
-//     }
-//   );
 
-//   const data = await response.json();
-//   const holders = data.data;
+export async function getEns(alchemy, walletAddress) {
+  const ensContractAddress = "0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85";
+  const nfts = await alchemy.nft.getNftsForOwner(walletAddress, {
+    contractAddresses: [ensContractAddress],
+  });
 
-//   // get balanceOf each holder from holders array and create list with address and balance
-//   const holderBalances = await Promise.all(
-//     holders.map(async (address) => {
-//       let balance = await getBalanceOf(web3, address);
-//       balance = web3.utils.fromWei(balance, "ether");
-//       balance = Number(balance).toFixed(2);
-
-//       return { address, balance };
-//     })
-//   );
-
-//   const sortedBalances = holderBalances.sort((a, b) => b.balance - a.balance);
-//   return sortedBalances;
-// }
+  if (nfts.totalCount > 0) {
+    return nfts.ownedNfts[0].name.toString();
+  } 
+    return walletAddress;
+}
