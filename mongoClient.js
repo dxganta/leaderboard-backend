@@ -16,6 +16,6 @@ export const client = new MongoClient(uri, {
 
 const cl = await client.connect();
 
-const db = cl.db("leaderboard").collection("quartz");
+const db = cl.db("leaderboard");
 
 export default db;

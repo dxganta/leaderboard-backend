@@ -1,7 +1,7 @@
 import scEthAbi from "./abis/scEthAbi.json" with { type: "json" };
 import ERC20Abi from "./abis/ERC20Abi.json" with { type: "json" };
 
-export async function readAirdropEvents(web3) {
+export async function readAirdropEvents(web3, vaultAddress) {
   const quartzContract = new web3.eth.Contract(
     ERC20Abi,
     "0xbA8A621b4a54e61C442F5Ec623687e2a942225ef"
@@ -37,11 +37,9 @@ export async function readAirdropEvents(web3) {
     Object.keys(airdrops).map(async (address) => {
       const airdrop = airdrops[address];
 
-      let balance = await getBalanceOf(web3, address);
-      // let balance = "2000000000000000000";
-      balance = Number(web3.utils.fromWei(balance, "ether"));
-
-    //   console.log({ address, balance, airdrop });
+      let balance = await getBalanceOf(web3, address, vaultAddress);
+      
+      // console.log({ address, balance, airdrop });
 
       return { address, balance, airdrop };
     })
@@ -50,36 +48,22 @@ export async function readAirdropEvents(web3) {
     return holders.sort((a, b) => b.airdrop - a.airdrop);
 }
 
-// export async function getHoldersArray(web3, airdrops) {
-//   const holders = await Promise.all(
-//     Object.keys(airdrops).map(async (address) => {
-//       const airdrop = airdrops[address];
-
-//       let balance = await getBalanceOf(web3, address);
-//       // let balance = "2000000000000000000";
-//       balance = Number(web3.utils.fromWei(balance, "ether"));
-
-//       console.log({ address, balance, airdrop });
-
-//       return { address, balance, airdrop };
-//     })
-//   );
-
-//   return holders.sort((a, b) => b.balance - a.balance);
-// }
-
-export async function getBalanceOf(web3, address) {
-  const scEth = new web3.eth.Contract(
+export async function getBalanceOf(web3, address, vaultAddress) {
+  const vault = new web3.eth.Contract(
     scEthAbi,
-    "0x4c406C068106375724275Cbff028770C544a1333"
+    vaultAddress
   );
 
-  const balance = await scEth.methods.balanceOf(address).call();
+  let balance = await vault.methods.balanceOf(address).call();
+
+  const decimals = Number(await vault.methods.decimals().call());
+
+  balance = Number(web3.utils.fromWei(balance, decimals===6 ? "mwei" : "ether" ));
 
   return balance;
 }
 
-export async function getPrice(web3, address, balance) {
+export async function getPrice(balance, isScEth) {
   const quartzAPY = 0.15;
 
   const response = await fetch(
@@ -94,15 +78,17 @@ export async function getPrice(web3, address, balance) {
     }
   );
 
-//   let balance = await getBalanceOf(web3, address);
-//   balance = Number(web3.utils.fromWei(balance, "ether"));
-
   const data = await response.json();
 
-  const ethPrice = data.data.ETH[0].quote.USD.price.toFixed(2);
   const quartzPrice = data.data.QUARTZ[0].quote.USD.price.toFixed(4);
 
-  const dollarsPerDay = (balance * ethPrice * quartzAPY) / 365;
+  let dollarsPerDay;
+  if (isScEth) {
+    const ethPrice = data.data.ETH[0].quote.USD.price.toFixed(2);
+    dollarsPerDay = (balance * ethPrice * quartzAPY) / 365;
+  } else {
+    dollarsPerDay = (balance * quartzAPY) / 365;
+  }
   const quartzPerDay = dollarsPerDay / quartzPrice;
 
   return quartzPerDay.toFixed(2);

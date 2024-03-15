@@ -1,0 +1,5 @@
+export const vaults = {
+  sceth: "0x4c406C068106375724275Cbff028770C544a1333",
+  scusdc: "0x096697720056886b905D0DEB0f06AfFB8e4665E5",
+  sclusd: "0xdb369eEB33fcfDCd1557E354dDeE7d6cF3146A11",
+};
