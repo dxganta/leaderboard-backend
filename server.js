@@ -18,9 +18,10 @@ app.get("/", (req, res) => {
   res.send("Quartz Leaderboard API");
 });
 
-app.get("/holders", async (req, res) => {
+app.get("/holders/:vault", async (req, res) => {
   try {
-    const cursor = db.find();
+    const coll = db.collection(req.params.vault);
+    const cursor = coll.find();
 
     const results = await cursor.toArray();
 
