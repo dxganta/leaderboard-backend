@@ -33,11 +33,20 @@ export async function readAirdropEvents(web3, vaultAddress) {
     }
   });
 
+  const vault = new web3.eth.Contract(
+    scEthAbi,
+    vaultAddress
+  );
+
+  const decimals = Number(await vault.methods.decimals().call());
+
   const holders = await Promise.all(
     Object.keys(airdrops).map(async (address) => {
       const airdrop = airdrops[address];
-
-      let balance = await getBalanceOf(web3, address, vaultAddress);
+    
+      let balance = await vault.methods.balanceOf(address).call();
+    
+      balance = Number(web3.utils.fromWei(balance, decimals===6 ? "mwei" : "ether" ));
       
       // console.log({ address, balance, airdrop });
 
@@ -48,20 +57,6 @@ export async function readAirdropEvents(web3, vaultAddress) {
     return holders.sort((a, b) => b.airdrop - a.airdrop);
 }
 
-export async function getBalanceOf(web3, address, vaultAddress) {
-  const vault = new web3.eth.Contract(
-    scEthAbi,
-    vaultAddress
-  );
-
-  let balance = await vault.methods.balanceOf(address).call();
-
-  const decimals = Number(await vault.methods.decimals().call());
-
-  balance = Number(web3.utils.fromWei(balance, decimals===6 ? "mwei" : "ether" ));
-
-  return balance;
-}
 
 export async function getPrice(balance, isScEth) {
   const quartzAPY = 0.15;
