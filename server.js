@@ -2,6 +2,7 @@ import express from "express";
 import db, { client } from "./mongoClient.js";
 import cors from "cors";
 import dotenv from "dotenv";
+import { vaults } from "./utils.js";
 
 dotenv.config();
 
@@ -36,15 +37,18 @@ app.get("/holders/:vault", async (req, res) => {
 
 app.get("/quartz/:address", async (req, res) => {
   try {
+    let totalQuartzPerDay = 0;
     const address = req.params.address;
 
-    const document = await db.findOne({ address });
-
-    if (document) {
-      res.send(document.quartzPerDay.toString());
-    } else {
-      res.send("0");
+    for (const [vault, _] of Object.entries(vaults)) {
+      const coll = db.collection(vault);
+      const document = await coll.findOne({ address });
+      if (document) {
+        totalQuartzPerDay += document.quartzPerDay;
+      }
     }
+
+    res.send(totalQuartzPerDay.toString());
   } catch {
     res.send("0");
   }
