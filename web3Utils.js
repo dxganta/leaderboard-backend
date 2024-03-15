@@ -39,6 +39,10 @@ export async function readAirdropEvents(web3, vaultAddress) {
   );
 
   const decimals = Number(await vault.methods.decimals().call());
+  const totalSupply = Number(await vault.methods.totalSupply().call());
+  const totalAssets = Number(await vault.methods.totalAssets().call());
+
+  const pps = totalAssets / totalSupply;
 
   const holders = await Promise.all(
     Object.keys(airdrops).map(async (address) => {
@@ -47,6 +51,7 @@ export async function readAirdropEvents(web3, vaultAddress) {
       let balance = await vault.methods.balanceOf(address).call();
     
       balance = Number(web3.utils.fromWei(balance, decimals===6 ? "mwei" : "ether" ));
+      balance = balance * pps;
       
       // console.log({ address, balance, airdrop });
 
