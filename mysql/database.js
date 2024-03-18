@@ -2,7 +2,7 @@ import mysql from "mysql2";
 import dotenv from "dotenv";
 import Web3 from "web3";
 
-import { readAirdropEvents, getPrice } from "./web3Utils.js";
+import { readAirdropEvents, getPrice } from "../utils/web3Utils.js";
 
 dotenv.config();
 const web3 = new Web3(process.env.ALCHEMY_ETHEREUM_RPC_URL);

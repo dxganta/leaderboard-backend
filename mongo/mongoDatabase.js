@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import Web3 from "web3";
 import db, { client } from "./mongoClient.js";
-import { vaults } from "./utils.js";
+import { vaults } from "../utils/utils.js";
 import { Alchemy, Network } from "alchemy-sdk";
 
 import {
@@ -9,7 +9,7 @@ import {
   getQuartzPerDay,
   getEns,
   getPrices,
-} from "./web3Utils.js";
+} from "../utils/web3Utils.js";
 
 dotenv.config();
 const web3 = new Web3(process.env.ALCHEMY_ETHEREUM_RPC_URL);

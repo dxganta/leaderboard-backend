@@ -1,8 +1,8 @@
 import express from "express";
-import db, { client } from "./mongoClient.js";
+import db, { client } from "./mongo/mongoClient.js";
 import cors from "cors";
 import dotenv from "dotenv";
-import { vaults } from "./utils.js";
+import { vaults } from "./utils/utils.js";
 
 dotenv.config();
 

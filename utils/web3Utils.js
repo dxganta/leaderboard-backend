@@ -1,5 +1,5 @@
-import scEthAbi from "./abis/scEthAbi.json" with { type: "json" };
-import ERC20Abi from "./abis/ERC20Abi.json" with { type: "json" };
+import scEthAbi from "../abis/scEthAbi.json" with { type: "json" };
+import ERC20Abi from "../abis/ERC20Abi.json" with { type: "json" };
 
 export async function readAirdropEvents(web3, vaultAddress) {
   const quartzContract = new web3.eth.Contract(
@@ -62,6 +62,7 @@ export async function readAirdropEvents(web3, vaultAddress) {
     return holders.sort((a, b) => b.airdrop - a.airdrop);
 }
 
+// returns the price of ETH and QUARTZ
 export async function getPrices() {
   const response = await fetch(
     "https://pro-api.coinmarketcap.com/v2/cryptocurrency/quotes/latest?symbol=ETH,QUARTZ",
@@ -85,6 +86,7 @@ export async function getPrices() {
 }
 
 
+// returns the amount of QUARTZ per day for an address
 export function getQuartzPerDay(balance, isScEth, ethPrice, quartzPrice) {
   const quartzAPY = 0.15;
 
@@ -100,6 +102,7 @@ export function getQuartzPerDay(balance, isScEth, ethPrice, quartzPrice) {
 }
 
 
+// returns the ENS name for an address else returns the address
 export async function getEns(alchemy, walletAddress) {
   const ensContractAddress = "0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85";
   const nfts = await alchemy.nft.getNftsForOwner(walletAddress, {
@@ -111,3 +114,9 @@ export async function getEns(alchemy, walletAddress) {
   } 
     return walletAddress;
 }
+
+// returns the amount of QUARTZ this address has gained in the ongoing month
+// which are to be distributed in the end of the month
+export async function getQuartzPoints(walletAddress) {
+
+} 
