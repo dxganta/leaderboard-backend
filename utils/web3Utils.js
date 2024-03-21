@@ -1,6 +1,9 @@
 import scEthAbi from "../abis/scEthAbi.json" with { type: "json" };
 import ERC20Abi from "../abis/ERC20Abi.json" with { type: "json" };
 
+const quartzAPY = 0.15;
+const zeroAddress = "0x0000000000000000000000000000000000000000"
+
 export async function readAirdropEvents(web3, vaultAddress) {
   const quartzContract = new web3.eth.Contract(
     ERC20Abi,
@@ -16,7 +19,7 @@ export async function readAirdropEvents(web3, vaultAddress) {
         "0x6cF38285FdFAf8D67205ca444A899025b5B18e83",
       ],
     },
-    fromBlock: 19076310, // Use a specific block number where the contract was deployed, or 'earliest' for the start
+    fromBlock: 18847935, // Use a specific block number where the contract was deployed, or 'earliest' for the start
     toBlock: "latest",
   });
 
@@ -88,8 +91,6 @@ export async function getPrices() {
 
 // returns the amount of QUARTZ per day for an address
 export function getQuartzPerDay(balance, isScEth, ethPrice, quartzPrice) {
-  const quartzAPY = 0.15;
-
   let dollarsPerDay;
   if (isScEth) {
     dollarsPerDay = (balance * ethPrice * quartzAPY) / 365;
@@ -115,8 +116,105 @@ export async function getEns(alchemy, walletAddress) {
     return walletAddress;
 }
 
-// returns the amount of QUARTZ this address has gained in the ongoing month
+const multipliers = {
+  "sceth": 3587e-18,
+  "scusdc": 1e-6,
+  "sclusd": 1e-18,
+}
+
+// returns the amount of QUARTZ all addresses has gained in the ongoing month
 // which are to be distributed in the end of the month
-export async function getQuartzPoints(walletAddress) {
+export async function getQuartzPoints(web3, vaultAddress, assetType) {
+
+  if (assetType == "sceth") {
+    const [ethPrice, _] = await getPrices();
+    multipliers["sceth"] = ethPrice;
+  }
+
+  const vault = new web3.eth.Contract(
+    scEthAbi,
+    vaultAddress
+  );
+
+  const decimals = Number(await vault.methods.decimals().call());
+  
+  const currentTimestamp = Math.floor(Date.now() / 1000);
+  const monthStartTimestamp = new Date(Date.UTC(new Date().getFullYear(), new Date().getMonth(), 1)).getTime() / 1000;
+
+  let totalClaimPerOwner = {};
+
+  const depositEvents = await vault.getPastEvents("Deposit", {
+    fromBlock: 17990849, // Use a specific block number where the contract was deployed, or 'earliest' for the start
+    toBlock: "latest",
+  });
+  for (const event of depositEvents) {
+    const {owner, assets} = event.returnValues;
+    const value = await quartzAirdropForDeposit(web3, assets, currentTimestamp, monthStartTimestamp, assetType, decimals, event.blockNumber);
+
+    if (owner in totalClaimPerOwner) {
+      totalClaimPerOwner[owner] += value;
+    } else {
+      totalClaimPerOwner[owner] = value;
+    }
+  }
+
+  // console.log(totalClaimPerOwner);
+
+
+  const transferEvents = await vault.getPastEvents("Transfer", {
+    fromBlock: 17990849, // Use a specific block number where the contract was deployed, or 'earliest' for the start
+    toBlock: "latest",
+  });
+  for (const event of transferEvents) {
+    const {from, to, amount} = event.returnValues;
+
+    if ((from !== zeroAddress) && (to!==zeroAddress)) {
+      const airdropValue = await quartzAirdropForDeposit(web3, amount, currentTimestamp, monthStartTimestamp, assetType, decimals, event.blockNumber);
+
+      totalClaimPerOwner[from] -= airdropValue;
+
+      if (to in totalClaimPerOwner) {
+        totalClaimPerOwner[to] += airdropValue;
+      } else {
+        totalClaimPerOwner[to] = airdropValue;
+      }
+    }  
+  }
+
+  // console.log(totalClaimPerOwner);
+
+  const withdrawalEvents = await vault.getPastEvents("Withdraw", {
+    fromBlock: 17990849, // Use a specific block number where the contract was deployed, or 'earliest' for the start
+    toBlock: "latest",
+  });
+  for (const event of withdrawalEvents) {
+    const {owner, assets} = event.returnValues;
+
+    const value = await quartzAirdropForDeposit(web3, assets, currentTimestamp, monthStartTimestamp, assetType, decimals, event.blockNumber);
+    totalClaimPerOwner[owner] -= value;
+  }
+
+  // console.log(totalClaimPerOwner);
+
+  return totalClaimPerOwner;
 
 } 
+
+async function quartzAirdropForDeposit(web3, balance, currentTimestamp, monthStartTimestamp, assetType, decimals, blockNumber) {
+  let assets = Number(web3.utils.fromWei(balance, decimals===6 ? "mwei" : "ether" ));
+  
+  const depositTimestamp = Number((await web3.eth.getBlock(blockNumber)).timestamp);
+
+  let hoursSinceDeposit;
+  if (depositTimestamp > monthStartTimestamp) {
+    hoursSinceDeposit = (currentTimestamp - depositTimestamp) / 3600;
+  } else {
+    hoursSinceDeposit = (currentTimestamp - monthStartTimestamp) / 3600;
+  }
+
+  assets = assets * Number(multipliers[assetType]);
+
+  const value = assets * quartzAPY *  (hoursSinceDeposit / (365 * 24) )
+
+  return value;
+}
