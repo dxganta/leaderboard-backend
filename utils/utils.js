@@ -3,3 +3,8 @@ export const vaults = {
   scusdc: "0x096697720056886b905D0DEB0f06AfFB8e4665E5",
   sclusd: "0xdb369eEB33fcfDCd1557E354dDeE7d6cF3146A11",
 };
+
+export const blacklistedAddress = [
+  "0x6cF38285FdFAf8D67205ca444A899025b5B18e83",
+  "0x096697720056886b905D0DEB0f06AfFB8e4665E5",
+];

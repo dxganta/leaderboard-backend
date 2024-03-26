@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import Web3 from "web3";
 import db, { client } from "./mongoClient.js";
-import { vaults } from "../utils/utils.js";
+import { vaults, blacklistedAddress } from "../utils/utils.js";
 import { Alchemy, Network } from "alchemy-sdk";
 import scEthAbi from "../abis/scEthAbi.json" with { type: "json" };
 import ERC20Abi from "../abis/ERC20Abi.json" with { type: "json" };
@@ -41,8 +41,6 @@ const totalClaimPerOwner = async (web3, vaultAddress, assetType) => {
 
 async function updateLeaderboardBalances() {
   try {
-    // let vault = "scusdc";
-    // let vaultAddress = vaults[vault];
     for (const [vault, vaultAddress] of Object.entries(vaults)) {
       console.log("Adding to vault Leaderboard", vault);
       const coll = db.collection(vault);
@@ -50,8 +48,11 @@ async function updateLeaderboardBalances() {
       await coll.deleteMany({});
 
       const holders = await getLeaderboardData(vaultAddress);
+      const quartzPointsAccumulated = await totalClaimPerOwner(web3, vaultAddress, vault);
 
       const [ethPrice, quartzPrice] = await getPrices();
+
+      const holderAddresses = holders.map((holder) => holder.address);
 
       for (const holder of holders) {
         if (holder.balance > 0) {
@@ -62,14 +63,53 @@ async function updateLeaderboardBalances() {
             quartzPrice
           );
 
-          // const ens = await getEns(alchemy, holder.address);
+          const ens = await getEns(alchemy, holder.address);
 
           await coll.insertOne({
-            address: holder.address,
+            address: ens,
             balance: holder.balance,
             airdrop: holder.airdrop,
             quartzPerDay: Number(quartzPerDay),
-            quartzPoints: 0
+            quartzPoints: quartzPointsAccumulated[holder.address],
+          });
+        }
+      }
+
+      // get all addresses in quartzPointsAccumulated that are not in holderAddresses
+      // these will be the addresses that have been received scETH shares by transfer
+      const missedHolders = Object.keys(quartzPointsAccumulated).filter(
+        (address) => !holderAddresses.includes(address)
+      );
+
+      const vault_ = new web3.eth.Contract(
+        scEthAbi,
+        vaultAddress
+      );
+      const totalSupply = Number(await vault_.methods.totalSupply().call());
+      const totalAssets = Number(await vault_.methods.totalAssets().call());
+      const pps = totalAssets / totalSupply;
+
+      for (const address of missedHolders) {
+        let balance = await vault_.methods.balanceOf(address).call();
+
+        if ((balance >  0) && !blacklistedAddress.includes(address)) {
+          console.log("Missed address", address);
+          balance = Number(web3.utils.fromWei(balance, vault==="scusdc" ? "mwei" : "ether" ));
+          balance = balance * pps;
+  
+          const quartzPerDay = getQuartzPerDay(
+            balance,
+            vault === "sceth",
+            ethPrice,
+            quartzPrice
+          );
+  
+          await coll.insertOne({
+            address: address,
+            balance : balance,
+            airdrop : 0,
+            quartzPerDay : quartzPerDay,
+            quartzPoints : quartzPointsAccumulated[address],
           });
         }
       }
@@ -82,68 +122,13 @@ async function updateLeaderboardBalances() {
   }
 }
 
-async function updateQuartzPoints()  {
-  try {
-    for (const [vault, vaultAddress] of Object.entries(vaults)) {
-      console.log("Adding quartz points to vault", vault);
-      const coll = db.collection(vault);
 
-      const quartzPointsAccumulated = await totalClaimPerOwner(web3, vaultAddress, vault);
-
-      for (const [owner, points] of Object.entries(quartzPointsAccumulated)) {
-        if (points > 1) {
-          const filter = { address: owner };
-          const options = { upsert: true };
-  
-          // Specify the update to set a value for the plot field
-        const updateDoc = {
-          $set: {
-            quartzPoints: points
-          },
-        };
-        // Update the first document that matches the filter
-         await coll.updateOne(filter, updateDoc, options);
-        }
-    }
-  } 
-}
-  catch (err) {
-    console.log(err);
-  } finally {
-    await client.close();
-  }
-}
-
-async function updateEnsNames() {
- try {
-  for (const [vault, vaultAddress] of Object.entries(vaults)) {
-    const coll = db.collection(vault);
-
-    // get all entries in the collection
-    const cursor = coll.find({});
-    const results = await cursor.toArray();
-    const jsonResults = JSON.stringify(results);
-
-    for (const doc in jsonResults) {
-      console.log(doc);
-    }
-  }
- } catch (err) {
-    console.log(err);
- } finally {
-    await client.close();
- }
-}
 
 async function run(functionName) {
   console.log(functionName);
   if (functionName === 'balances') {
      await updateLeaderboardBalances();
-  } else if (functionName == "points") {
-    await updateQuartzPoints();
-  } else if (functionName == "ens") {
-    await updateEnsNames();
-  }
+  } 
 }
 
 run("balances").catch(console.dir);

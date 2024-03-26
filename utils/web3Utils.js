@@ -62,7 +62,7 @@ export async function readAirdropEvents(web3, vaultAddress) {
     })
   );
 
-    return holders.sort((a, b) => b.airdrop - a.airdrop);
+    return holders;
 }
 
 // returns the price of ETH and QUARTZ
@@ -117,17 +117,18 @@ export async function getEns(alchemy, walletAddress) {
 }
 
 const multipliers = {
-  "sceth": 3587e-18,
-  "scusdc": 1e-6,
-  "sclusd": 1e-18,
+  "sceth": 3587,
+  "scusdc": 1,
+  "sclusd": 1,
 }
 
 // returns the amount of QUARTZ all addresses has gained in the ongoing month
 // which are to be distributed in the end of the month
 export async function getQuartzPoints(web3, vaultAddress, assetType) {
 
+  const [ethPrice, quartzPrice] = await getPrices();
+
   if (assetType == "sceth") {
-    const [ethPrice, _] = await getPrices();
     multipliers["sceth"] = ethPrice;
   }
 
@@ -149,7 +150,7 @@ export async function getQuartzPoints(web3, vaultAddress, assetType) {
   });
   for (const event of depositEvents) {
     const {owner, assets} = event.returnValues;
-    const value = await quartzAirdropForDeposit(web3, assets, currentTimestamp, monthStartTimestamp, assetType, decimals, event.blockNumber);
+    const value = await quartzAirdropForDeposit(web3, assets, currentTimestamp, monthStartTimestamp, assetType, decimals, event.blockNumber, quartzPrice);
 
     if (owner in totalClaimPerOwner) {
       totalClaimPerOwner[owner] += value;
@@ -158,7 +159,7 @@ export async function getQuartzPoints(web3, vaultAddress, assetType) {
     }
   }
 
-  // console.log(totalClaimPerOwner);
+  console.log(totalClaimPerOwner);
 
 
   const transferEvents = await vault.getPastEvents("Transfer", {
@@ -169,7 +170,7 @@ export async function getQuartzPoints(web3, vaultAddress, assetType) {
     const {from, to, amount} = event.returnValues;
 
     if ((from !== zeroAddress) && (to!==zeroAddress)) {
-      const airdropValue = await quartzAirdropForDeposit(web3, amount, currentTimestamp, monthStartTimestamp, assetType, decimals, event.blockNumber);
+      const airdropValue = await quartzAirdropForDeposit(web3, amount, currentTimestamp, monthStartTimestamp, assetType, decimals, event.blockNumber, quartzPrice);
 
       totalClaimPerOwner[from] -= airdropValue;
 
@@ -181,7 +182,7 @@ export async function getQuartzPoints(web3, vaultAddress, assetType) {
     }  
   }
 
-  // console.log(totalClaimPerOwner);
+  console.log(totalClaimPerOwner);
 
   const withdrawalEvents = await vault.getPastEvents("Withdraw", {
     fromBlock: 17990849, // Use a specific block number where the contract was deployed, or 'earliest' for the start
@@ -190,18 +191,21 @@ export async function getQuartzPoints(web3, vaultAddress, assetType) {
   for (const event of withdrawalEvents) {
     const {owner, assets} = event.returnValues;
 
-    const value = await quartzAirdropForDeposit(web3, assets, currentTimestamp, monthStartTimestamp, assetType, decimals, event.blockNumber);
+    const value = await quartzAirdropForDeposit(web3, assets, currentTimestamp, monthStartTimestamp, assetType, decimals, event.blockNumber, quartzPrice);
     totalClaimPerOwner[owner] -= value;
   }
 
-  // console.log(totalClaimPerOwner);
+  console.log(totalClaimPerOwner);
 
   return totalClaimPerOwner;
 
 } 
 
-async function quartzAirdropForDeposit(web3, balance, currentTimestamp, monthStartTimestamp, assetType, decimals, blockNumber) {
+async function quartzAirdropForDeposit(web3, balance, currentTimestamp, monthStartTimestamp, assetType, decimals, blockNumber, quartzPrice) {
+  // console.log("balance", balance);
+  // console.log("decimals", decimals);
   let assets = Number(web3.utils.fromWei(balance, decimals===6 ? "mwei" : "ether" ));
+  // console.log("assets", assets);
   
   const depositTimestamp = Number((await web3.eth.getBlock(blockNumber)).timestamp);
 
@@ -213,8 +217,10 @@ async function quartzAirdropForDeposit(web3, balance, currentTimestamp, monthSta
   }
 
   assets = assets * Number(multipliers[assetType]);
+  // console.log("assets", assets);
 
   const value = assets * quartzAPY *  (hoursSinceDeposit / (365 * 24) )
+  // console.log("value", value);
 
-  return value;
+  return value/quartzPrice;
 }
