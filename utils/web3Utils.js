@@ -24,7 +24,8 @@ export async function readAirdropEvents(web3, vaultAddress) {
   });
 
   events.forEach((event) => {
-    const { _, to, value } = event.returnValues;
+    const { from, to, value } = event.returnValues;
+    // console.log({ from, to, value });
     const valueInEth = Number(web3.utils.fromWei(value, "ether"));
 
     if (airdrops.hasOwnProperty(to)) {
@@ -105,14 +106,18 @@ export function getQuartzPerDay(balance, isScEth, ethPrice, quartzPrice) {
 
 // returns the ENS name for an address else returns the address
 export async function getEns(alchemy, walletAddress) {
-  const ensContractAddress = "0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85";
-  const nfts = await alchemy.nft.getNftsForOwner(walletAddress, {
-    contractAddresses: [ensContractAddress],
-  });
+  try {
+    const ensContractAddress = "0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85";
+    const nfts = await alchemy.nft.getNftsForOwner(walletAddress, {
+      contractAddresses: [ensContractAddress],
+    });
 
-  if (nfts.totalCount > 0) {
-    return nfts.ownedNfts[0].name.toString();
-  } 
+    if (nfts.totalCount > 0) {
+      return nfts.ownedNfts[0].name.toString();
+    } 
+  } catch {
+    return walletAddress;
+  }
     return walletAddress;
 }
 
@@ -159,7 +164,7 @@ export async function getQuartzPoints(web3, vaultAddress, assetType) {
     }
   }
 
-  console.log(totalClaimPerOwner);
+  // console.log(totalClaimPerOwner);
 
 
   const transferEvents = await vault.getPastEvents("Transfer", {
@@ -182,7 +187,7 @@ export async function getQuartzPoints(web3, vaultAddress, assetType) {
     }  
   }
 
-  console.log(totalClaimPerOwner);
+  // console.log(totalClaimPerOwner);
 
   const withdrawalEvents = await vault.getPastEvents("Withdraw", {
     fromBlock: 17990849, // Use a specific block number where the contract was deployed, or 'earliest' for the start
@@ -195,17 +200,14 @@ export async function getQuartzPoints(web3, vaultAddress, assetType) {
     totalClaimPerOwner[owner] -= value;
   }
 
-  console.log(totalClaimPerOwner);
+  // console.log(totalClaimPerOwner);
 
   return totalClaimPerOwner;
 
 } 
 
 async function quartzAirdropForDeposit(web3, balance, currentTimestamp, monthStartTimestamp, assetType, decimals, blockNumber, quartzPrice) {
-  // console.log("balance", balance);
-  // console.log("decimals", decimals);
   let assets = Number(web3.utils.fromWei(balance, decimals===6 ? "mwei" : "ether" ));
-  // console.log("assets", assets);
   
   const depositTimestamp = Number((await web3.eth.getBlock(blockNumber)).timestamp);
 
@@ -217,10 +219,8 @@ async function quartzAirdropForDeposit(web3, balance, currentTimestamp, monthSta
   }
 
   assets = assets * Number(multipliers[assetType]);
-  // console.log("assets", assets);
 
   const value = assets * quartzAPY *  (hoursSinceDeposit / (365 * 24) )
-  // console.log("value", value);
 
   return value/quartzPrice;
 }

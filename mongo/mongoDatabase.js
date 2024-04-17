@@ -48,14 +48,20 @@ async function updateLeaderboardBalances() {
       await coll.deleteMany({});
 
       const holders = await getLeaderboardData(vaultAddress);
+      // console.log(holders);
       const quartzPointsAccumulated = await totalClaimPerOwner(web3, vaultAddress, vault);
+      // console.log(quartzPointsAccumulated);
 
       const [ethPrice, quartzPrice] = await getPrices();
 
       const holderAddresses = holders.map((holder) => holder.address);
+      // console.log(holderAddresses);
 
+      console.log(holderAddresses.length, "holders");
       for (const holder of holders) {
+        // console.log("Holder", holder.address, holder.balance, holder.airdrop);
         if (holder.balance > 0) {
+          // console.log("Adding holder", holder.address, holder.balance, holder.airdrop);
           const quartzPerDay = getQuartzPerDay(
             holder.balance,
             vault === "sceth",
@@ -64,15 +70,19 @@ async function updateLeaderboardBalances() {
           );
 
           const ens = await getEns(alchemy, holder.address);
+          // console.log("ENS", ens);
 
           await coll.insertOne({
-            address: ens,
+            address: holder.address,
             balance: holder.balance,
             airdrop: holder.airdrop,
             quartzPerDay: Number(quartzPerDay),
             quartzPoints: quartzPointsAccumulated[holder.address],
+            ens: ens,
           });
         }
+
+        // console.log('-----------------------------------');
       }
 
       // get all addresses in quartzPointsAccumulated that are not in holderAddresses
@@ -103,6 +113,8 @@ async function updateLeaderboardBalances() {
             ethPrice,
             quartzPrice
           );
+
+          const ens = await getEns(alchemy, address);
   
           await coll.insertOne({
             address: address,
@@ -110,6 +122,7 @@ async function updateLeaderboardBalances() {
             airdrop : 0,
             quartzPerDay : quartzPerDay,
             quartzPoints : quartzPointsAccumulated[address],
+            ens : ens,
           });
         }
       }
@@ -129,6 +142,12 @@ async function run(functionName) {
   if (functionName === 'balances') {
      await updateLeaderboardBalances();
   } 
+  if (functionName == 'test') {
+    const holders = await getLeaderboardData(vaults.sceth);
+    const quartzPointsAccumulated = await totalClaimPerOwner(web3, vaults.sceth, 'sceth');
+    console.log(holders);
+    console.log(quartzPointsAccumulated);
+  }
 }
 
 run("balances").catch(console.dir);
