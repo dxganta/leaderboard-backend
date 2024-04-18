@@ -1,5 +1,7 @@
 import scEthAbi from "../abis/scEthAbi.json" with { type: "json" };
 import ERC20Abi from "../abis/ERC20Abi.json" with { type: "json" };
+import PublicResolverAbi from "../abis/PublicResolverAbi.json" with { type: "json" };
+import ReverseRegistrarAbi from "../abis/ReverseRegistrarAbi.json" with { type: "json" };
 
 const quartzAPY = 0.15;
 const zeroAddress = "0x0000000000000000000000000000000000000000"
@@ -103,23 +105,43 @@ export function getQuartzPerDay(balance, isScEth, ethPrice, quartzPrice) {
   return quartzPerDay.toFixed(2);
 }
 
-
-// returns the ENS name for an address else returns the address
-export async function getEns(alchemy, walletAddress) {
+export async function getEnsPrimaryName(web3, walletAddress) {
   try {
-    const ensContractAddress = "0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85";
-    const nfts = await alchemy.nft.getNftsForOwner(walletAddress, {
-      contractAddresses: [ensContractAddress],
-    });
 
-    if (nfts.totalCount > 0) {
-      return nfts.ownedNfts[0].name.toString();
-    } 
+    const registrar = new web3.eth.Contract(ReverseRegistrarAbi, "0xa58E81fe9b61B5c3fE2AFD33CF304c454AbFc7Cb");
+    const resolver = new web3.eth.Contract(PublicResolverAbi, "0x231b0Ee14048e9dCcD1d247744d114a4EB5E8E63");
+
+    const node = await registrar.methods.node(walletAddress).call();
+    const ensName = await resolver.methods.name(node).call();
+
+    if (ensName !== "") {
+      return ensName;
+    }
+
   } catch {
     return walletAddress;
   }
-    return walletAddress;
+
+  return walletAddress;
+
 }
+
+// returns the ENS name for an address else returns the address
+// export async function getEns(alchemy, walletAddress) {
+//   try {
+//     const ensContractAddress = "0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85";
+//     const nfts = await alchemy.nft.getNftsForOwner(walletAddress, {
+//       contractAddresses: [ensContractAddress],
+//     });
+
+//     if (nfts.totalCount > 0) {
+//       return nfts.ownedNfts[0].name.toString();
+//     } 
+//   } catch {
+//     return walletAddress;
+//   }
+//     return walletAddress;
+// }
 
 const multipliers = {
   "sceth": 3587,

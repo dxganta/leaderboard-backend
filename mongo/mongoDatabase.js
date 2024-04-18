@@ -10,9 +10,9 @@ import ERC20Abi from "../abis/ERC20Abi.json" with { type: "json" };
 import {
   readAirdropEvents,
   getQuartzPerDay,
-  getEns,
   getPrices,
   getQuartzPoints,
+  getEnsPrimaryName
 } from "../utils/web3Utils.js";
 
 dotenv.config();
@@ -23,7 +23,9 @@ const config = {
   network: Network.ETH_MAINNET,
 };
 
-const alchemy = new Alchemy(config);
+// const alchemy = new Alchemy(config);
+
+let totalQuartzDistributed = 0;
 
 const getLeaderboardData = async (vaultAddress) => {
   return new Promise((resolve) => {
@@ -69,7 +71,7 @@ async function updateLeaderboardBalances() {
             quartzPrice
           );
 
-          const ens = await getEns(alchemy, holder.address);
+          const ens = await getEnsPrimaryName(web3, holder.address);
           // console.log("ENS", ens);
 
           await coll.insertOne({
@@ -80,6 +82,8 @@ async function updateLeaderboardBalances() {
             quartzPoints: quartzPointsAccumulated[holder.address],
             ens: ens,
           });
+
+          totalQuartzDistributed += holder.airdrop;
         }
 
         // console.log('-----------------------------------');
@@ -114,7 +118,7 @@ async function updateLeaderboardBalances() {
             quartzPrice
           );
 
-          const ens = await getEns(alchemy, address);
+          const ens = await getEnsPrimaryName(web3, address);
   
           await coll.insertOne({
             address: address,
@@ -126,6 +130,14 @@ async function updateLeaderboardBalances() {
           });
         }
       }
+
+      const quartzColl = db.collection("quartz");
+      await quartzColl.deleteMany({});
+
+      await quartzColl.insertOne({
+        totalQuartzDistributed: totalQuartzDistributed,
+        totalQuartzDistributedUSD: totalQuartzDistributed * quartzPrice,
+      });
     }
   } catch (err) {
     console.log(err);
@@ -144,9 +156,14 @@ async function run(functionName) {
   } 
   if (functionName == 'test') {
     const holders = await getLeaderboardData(vaults.sceth);
-    const quartzPointsAccumulated = await totalClaimPerOwner(web3, vaults.sceth, 'sceth');
-    console.log(holders);
-    console.log(quartzPointsAccumulated);
+    // const quartzPointsAccumulated = await totalClaimPerOwner(web3, vaults.sceth, 'sceth');
+    // console.log(holders);
+    // console.log(quartzPointsAccumulated);
+
+    for (const holder of holders) {
+      const ens = await getEnsPrimaryName(web3, holder.address);
+      console.log(holder.address, ens);
+    }
   }
 }
 

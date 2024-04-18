@@ -53,3 +53,19 @@ app.get("/quartz/:address", async (req, res) => {
     res.send("0");
   }
 });
+
+app.get("/quartz", async (req, res) => {
+  try {
+    const coll = db.collection("quartz");
+    const cursor = coll.find();
+
+    const results = await cursor.toArray();
+
+    // Convert the results to JSON
+    const jsonResults = JSON.stringify(results);
+
+    res.send(jsonResults);
+  } catch {
+    res.send([]);
+  }
+});
