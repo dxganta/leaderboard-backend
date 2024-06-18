@@ -160,10 +160,10 @@ async function run(functionName) {
     // console.log(holders);
     // console.log(quartzPointsAccumulated);
 
-    for (const holder of holders) {
-      const ens = await getEnsPrimaryName(web3, holder.address);
-      console.log(holder.address, ens);
-    }
+    // for (const holder of holders) {
+    //   const ens = await getEnsPrimaryName(web3, holder.address);
+    //   console.log(holder.address, ens);
+    // }
   }
 }
 

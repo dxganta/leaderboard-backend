@@ -6,10 +6,18 @@ import ReverseRegistrarAbi from "../abis/ReverseRegistrarAbi.json" with { type: 
 const quartzAPY = 0.15;
 const zeroAddress = "0x0000000000000000000000000000000000000000"
 
+const BATCH_SIZE = 10;
+const DELAY = 2000; // 2 seconds delay
+
 export async function readAirdropEvents(web3, vaultAddress) {
   const quartzContract = new web3.eth.Contract(
     ERC20Abi,
     "0xbA8A621b4a54e61C442F5Ec623687e2a942225ef"
+  );
+
+  const vault = new web3.eth.Contract(
+    scEthAbi,
+    vaultAddress
   );
 
   let airdrops = {};
@@ -25,6 +33,7 @@ export async function readAirdropEvents(web3, vaultAddress) {
     toBlock: "latest",
   });
 
+
   events.forEach((event) => {
     const { from, to, value } = event.returnValues;
     // console.log({ from, to, value });
@@ -39,10 +48,6 @@ export async function readAirdropEvents(web3, vaultAddress) {
     }
   });
 
-  const vault = new web3.eth.Contract(
-    scEthAbi,
-    vaultAddress
-  );
 
   const decimals = Number(await vault.methods.decimals().call());
   const totalSupply = Number(await vault.methods.totalSupply().call());
@@ -50,22 +55,44 @@ export async function readAirdropEvents(web3, vaultAddress) {
 
   const pps = totalAssets / totalSupply;
 
-  const holders = await Promise.all(
-    Object.keys(airdrops).map(async (address) => {
-      const airdrop = airdrops[address];
-    
-      let balance = await vault.methods.balanceOf(address).call();
-    
-      balance = Number(web3.utils.fromWei(balance, decimals===6 ? "mwei" : "ether" ));
-      balance = balance * pps;
-      
-      // console.log({ address, balance, airdrop });
+  const addresses = Object.keys(airdrops);
 
-      return { address, balance, airdrop };
-    })
-  );
+  let holders = []
 
-    return holders;
+  for (let i = 0; i < addresses.length; i += BATCH_SIZE) {
+    const batch = addresses.slice(i, i + BATCH_SIZE);
+    const balances = await fetchBalances(batch, pps, vault, web3, decimals, airdrops);
+    // console.log('Balances:', balances);
+
+    holders.push(...balances)
+
+    if (i + BATCH_SIZE < addresses.length) {
+      await delay(DELAY);
+    }
+  }
+
+
+  return holders;
+
+}
+
+async function fetchBalances(batch, pps, vault, web3, decimals, airdrops) {
+  const balancePromises = batch.map(async (address) => {
+    let balance = await vault.methods.balanceOf(address).call();
+    balance = Number(web3.utils.fromWei(balance, decimals===6 ? "mwei" : "ether" ));
+    balance = balance * pps;
+
+    const airdrop = airdrops[address];
+
+    return {address, balance, airdrop};
+  });
+
+  return Promise.all(balancePromises);
+}
+
+// Delay function
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 // returns the price of ETH and QUARTZ
