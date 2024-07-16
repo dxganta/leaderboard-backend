@@ -111,7 +111,8 @@ export async function getPrices() {
 
   const data = await response.json();
 
-  const quartzPrice = data.data.QUARTZ[0].quote.USD.price.toFixed(4);
+  // console.log("data", data.data.QUARTZ[0].quote.USD.)
+  const quartzPrice = 0.1678; // using a hardcoded price since coinmarketcap has removed price tracking of quartz
   const ethPrice = data.data.ETH[0].quote.USD.price.toFixed(2);
 
   return [ ethPrice, quartzPrice];

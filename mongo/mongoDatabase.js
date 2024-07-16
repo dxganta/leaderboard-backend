@@ -155,7 +155,8 @@ async function run(functionName) {
      await updateLeaderboardBalances();
   } 
   if (functionName == 'test') {
-    const holders = await getLeaderboardData(vaults.sceth);
+    // const holders = await getLeaderboardData(vaults.sceth);
+    const prices = await getPrices();
     // const quartzPointsAccumulated = await totalClaimPerOwner(web3, vaults.sceth, 'sceth');
     // console.log(holders);
     // console.log(quartzPointsAccumulated);

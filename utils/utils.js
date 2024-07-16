@@ -7,4 +7,5 @@ export const vaults = {
 export const blacklistedAddress = [
   "0x6cF38285FdFAf8D67205ca444A899025b5B18e83",
   "0x096697720056886b905D0DEB0f06AfFB8e4665E5",
+  "0x0A36F9565c6FB862509aD8d148941968344a55D8",
 ];
