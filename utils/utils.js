@@ -4,8 +4,25 @@ export const vaults = {
   sclusd: "0xdb369eEB33fcfDCd1557E354dDeE7d6cF3146A11",
 };
 
+export const stablecoinVaults = {
+  scusdt: {
+    vaultAddress: "0x237eCDF745d2a0052AeaF6f027ce82F77431871E",
+    poolAddress: "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
+  },
+  scsdai: {
+    vaultAddress: "0x0Fc97657B67C7E7bD4100c72851d0377DA14B470",
+    poolAddress: "0xC13e21B648A5Ee794902342038FF3aDAB66BE987",
+  },
+  scusdc: {
+    vaultAddress: "0x096697720056886b905D0DEB0f06AfFB8e4665E5",
+    poolAddress: "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
+  },
+};
+
 export const blacklistedAddress = [
   "0x6cF38285FdFAf8D67205ca444A899025b5B18e83",
   "0x096697720056886b905D0DEB0f06AfFB8e4665E5",
   "0x0A36F9565c6FB862509aD8d148941968344a55D8",
 ];
+
+export const aavePool = "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2";
